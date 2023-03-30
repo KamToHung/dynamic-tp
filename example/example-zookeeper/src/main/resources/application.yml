@@ -8,7 +8,7 @@ spring:
     tp:
       config-type: json               # zookeeper支持properties / json 配置
       zookeeper:
-        zk-connect-str: 127.0.0.1:2181
+        zk-connect-str: ${zookeeper:127.0.0.1:2181}
         root-node: /configserver/dev
         node: dtp-group
         config-key: dynamic-tp-zookeeper-demo-json   # json 用到

@@ -6,7 +6,7 @@ spring:
     tp:
       config-type: properties
       etcd:
-        endpoints: http://127.0.0.1:2379
+        endpoints: http://${etcd:127.0.0.1:2379}
         auth-enable: false
         key: /config/dynamic-tp-etcd-demo
   application:

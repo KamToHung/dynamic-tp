@@ -58,6 +58,9 @@ spring:
           ssl:
             enable: true
         debug: false
+  redis:
+    host: ${redis:127.0.0.1}
+    port: 6379
 
 dubbo:
   application:
@@ -65,7 +68,7 @@ dubbo:
   registry:
     id: zookeeper-registry
     protocol: zookeeper
-    address: zookeeper://127.0.0.1:2181
+    address: zookeeper://${zookeeper:127.0.0.1:2181}
   protocol:
     name: dubbo
     port: 20880

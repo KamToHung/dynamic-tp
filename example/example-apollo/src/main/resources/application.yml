@@ -24,7 +24,7 @@ apollo:
   bootstrap:
     enabled: true
     namespaces: dynamic-tp-apollo-demo-dtp.yml
-  meta: http://localhost:8080
-  config-service: http://localhost:8080
+  meta: http://${apollo:127.0.0.1:8080}
+  config-service: http://${apollo:127.0.0.1:8080}
 app:
   id: dynamic-tp-apollo-demo

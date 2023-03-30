@@ -21,8 +21,8 @@ spring:
     active: dev
   cloud:
     consul:
-      host: 127.0.0.1
-      port: 8500
+      host: ${consul:127.0.0.1}
+      port: ${port:8500}
       config:
         enabled: true
         prefixes: config

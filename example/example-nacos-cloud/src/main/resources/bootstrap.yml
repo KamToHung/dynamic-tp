@@ -9,9 +9,9 @@ spring:
   cloud:
     nacos:
       discovery:
-        server-addr: http://${nacos:localhost}:8848
+        server-addr: ${nacos:127.0.0.1:8848}
       config:
-        server-addr: http://${nacos:localhost}:8848
+        server-addr: ${nacos:127.0.0.1:8848}
         file-extension: yml
         extension-configs:
           - dataId: ${spring.application.name}-dtp-${spring.profiles.active}.${spring.cloud.nacos.config.file-extension}
@@ -19,7 +19,7 @@ spring:
             refresh: true  # 必须配置，负责自动刷新不生效
         refresh-enabled: true
   redis:
-    host: ${redis:localhost}
+    host: ${redis:127.0.0.1}
     port: 6379
 management:
   metrics:
