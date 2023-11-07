@@ -44,10 +44,6 @@ public class ApolloRefresher extends AbstractRefresher implements ConfigFileChan
 
     private ConfigFileTypeEnum configFileType;
 
-    public ApolloRefresher(DtpProperties dtpProperties) {
-        super(dtpProperties);
-    }
-
     @Override
     public void afterPropertiesSet() {
 
