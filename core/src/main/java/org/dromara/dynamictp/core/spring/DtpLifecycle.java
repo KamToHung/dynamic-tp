@@ -23,6 +23,7 @@ import org.dromara.dynamictp.core.notifier.manager.AlarmManager;
 import org.dromara.dynamictp.core.notifier.manager.NoticeManager;
 import org.dromara.dynamictp.core.support.DtpLifecycleSupport;
 import lombok.extern.slf4j.Slf4j;
+import org.dromara.dynamictp.core.system.SystemMetricManager;
 import org.springframework.context.SmartLifecycle;
 
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -41,7 +42,7 @@ public class DtpLifecycle implements SmartLifecycle {
     @Override
     public void start() {
         if (this.running.compareAndSet(false, true)) {
-            DtpRegistry.listAllExecutors().forEach((k, v) -> DtpLifecycleSupport.initialize(v));
+            DtpRegistry.getAllExecutors().forEach((k, v) -> DtpLifecycleSupport.initialize(v));
         }
     }
 
@@ -49,7 +50,7 @@ public class DtpLifecycle implements SmartLifecycle {
     public void stop() {
         if (this.running.compareAndSet(true, false)) {
             shutdownInternal();
-            DtpRegistry.listAllExecutors().forEach((k, v) -> DtpLifecycleSupport.destroy(v));
+            DtpRegistry.getAllExecutors().forEach((k, v) -> DtpLifecycleSupport.destroy(v));
         }
     }
 
@@ -62,5 +63,6 @@ public class DtpLifecycle implements SmartLifecycle {
         DtpMonitor.destroy();
         AlarmManager.destroy();
         NoticeManager.destroy();
+        SystemMetricManager.stop();
     }
 }

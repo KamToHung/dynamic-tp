@@ -18,11 +18,12 @@
 package org.dromara.dynamictp.core.reject;
 
 import lombok.extern.slf4j.Slf4j;
+import org.dromara.dynamictp.core.aware.AwareManager;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.Executor;
 
 /**
  * RejectedInvocationHandler related
@@ -31,7 +32,7 @@ import java.util.concurrent.ThreadPoolExecutor;
  * @since 1.0.0
  */
 @Slf4j
-public class RejectedInvocationHandler implements InvocationHandler, RejectedAware {
+public class RejectedInvocationHandler implements InvocationHandler {
 
     private final Object target;
 
@@ -42,12 +43,32 @@ public class RejectedInvocationHandler implements InvocationHandler, RejectedAwa
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
         try {
-            Runnable runnable = (Runnable) args[0];
-            ThreadPoolExecutor executor = (ThreadPoolExecutor) args[1];
-            beforeReject(runnable, executor, log);
-            return method.invoke(target, args);
+            beforeReject((Runnable) args[0], (Executor) args[1]);
+            Object result = method.invoke(target, args);
+            afterReject((Runnable) args[0], (Executor) args[1]);
+            return result;
         } catch (InvocationTargetException ex) {
             throw ex.getCause();
         }
+    }
+
+    /**
+     * Do sth before reject.
+     *
+     * @param runnable the runnable
+     * @param executor ThreadPoolExecutor instance
+     */
+    private void beforeReject(Runnable runnable, Executor executor) {
+        AwareManager.beforeReject(runnable, executor);
+    }
+
+    /**
+     * Do sth after reject.
+     *
+     * @param runnable the runnable
+     * @param executor ThreadPoolExecutor instance
+     */
+    private void afterReject(Runnable runnable, Executor executor) {
+        AwareManager.afterReject(runnable, executor);
     }
 }

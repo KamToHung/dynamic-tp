@@ -17,14 +17,19 @@
 
 package org.dromara.dynamictp.core.spring;
 
+import lombok.extern.slf4j.Slf4j;
+import lombok.val;
+import org.apache.commons.lang3.StringUtils;
+import org.dromara.dynamictp.common.util.ConstructorUtil;
+import org.dromara.dynamictp.common.util.ReflectionUtil;
 import org.dromara.dynamictp.core.DtpRegistry;
+import org.dromara.dynamictp.core.executor.DtpExecutor;
+import org.dromara.dynamictp.core.executor.eager.EagerDtpExecutor;
+import org.dromara.dynamictp.core.executor.eager.TaskQueue;
+import org.dromara.dynamictp.core.plugin.DtpInterceptorRegistry;
 import org.dromara.dynamictp.core.support.DynamicTp;
 import org.dromara.dynamictp.core.support.ExecutorWrapper;
-import org.dromara.dynamictp.core.support.TaskQueue;
-import org.dromara.dynamictp.core.thread.DtpExecutor;
-import org.dromara.dynamictp.core.thread.EagerDtpExecutor;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
+import org.dromara.dynamictp.core.support.ThreadPoolExecutorProxy;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.BeanFactoryAware;
@@ -42,8 +47,10 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import java.util.Collections;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.Executor;
+import java.util.Set;
 import java.util.concurrent.ThreadPoolExecutor;
+
+import static org.dromara.dynamictp.core.support.DtpLifecycleSupport.shutdownGracefulAsync;
 
 /**
  * BeanPostProcessor that handles all related beans managed by Spring.
@@ -52,7 +59,10 @@ import java.util.concurrent.ThreadPoolExecutor;
  * @since 1.0.0
  **/
 @Slf4j
+@SuppressWarnings("all")
 public class DtpPostProcessor implements BeanPostProcessor, BeanFactoryAware, PriorityOrdered {
+
+    private static final String REGISTER_SOURCE = "beanPostProcessor";
 
     private DefaultListableBeanFactory beanFactory;
 
@@ -62,56 +72,67 @@ public class DtpPostProcessor implements BeanPostProcessor, BeanFactoryAware, Pr
             return bean;
         }
         if (bean instanceof DtpExecutor) {
-            // register DtpExecutor
-            registerDtp(bean);
-        } else {
-            // register ThreadPoolExecutor or ThreadPoolTaskExecutor
-            registerCommon(bean, beanName);
+            return registerAndReturnDtp(bean);
         }
-        return bean;
+        // register juc ThreadPoolExecutor or ThreadPoolTaskExecutor
+        return registerAndReturnCommon(bean, beanName);
     }
 
-    private void registerDtp(Object bean) {
+    private Object registerAndReturnDtp(Object bean) {
         DtpExecutor dtpExecutor = (DtpExecutor) bean;
-        if (bean instanceof EagerDtpExecutor) {
-            ((TaskQueue) dtpExecutor.getQueue()).setExecutor((EagerDtpExecutor) dtpExecutor);
+        Object[] args = ConstructorUtil.buildTpExecutorConstructorArgs(dtpExecutor);
+        Class<?>[] argTypes = ConstructorUtil.buildTpExecutorConstructorArgTypes();
+        Set<String> pluginNames = dtpExecutor.getPluginNames();
+
+        val enhancedBean = (DtpExecutor) DtpInterceptorRegistry.plugin(bean, pluginNames, argTypes, args);
+        if (enhancedBean instanceof EagerDtpExecutor) {
+            ((TaskQueue) enhancedBean.getQueue()).setExecutor((EagerDtpExecutor) enhancedBean);
         }
-        DtpRegistry.registerExecutor(ExecutorWrapper.of(dtpExecutor), "beanPostProcessor");
+        DtpRegistry.registerExecutor(ExecutorWrapper.of(enhancedBean), REGISTER_SOURCE);
+        return enhancedBean;
     }
 
-    private void registerCommon(Object bean, String beanName) {
-        String dtpAnnotationVal;
+    private Object registerAndReturnCommon(Object bean, String beanName) {
+        String dtpAnnoValue;
         try {
             DynamicTp dynamicTp = beanFactory.findAnnotationOnBean(beanName, DynamicTp.class);
             if (Objects.nonNull(dynamicTp)) {
-                dtpAnnotationVal = dynamicTp.value();
+                dtpAnnoValue = dynamicTp.value();
             } else {
                 BeanDefinition beanDefinition = beanFactory.getBeanDefinition(beanName);
                 if (!(beanDefinition instanceof AnnotatedBeanDefinition)) {
-                    return;
+                    return bean;
                 }
                 AnnotatedBeanDefinition annotatedBeanDefinition = (AnnotatedBeanDefinition) beanDefinition;
                 MethodMetadata methodMetadata = (MethodMetadata) annotatedBeanDefinition.getSource();
                 if (Objects.isNull(methodMetadata) || !methodMetadata.isAnnotated(DynamicTp.class.getName())) {
-                    return;
+                    return bean;
                 }
-                dtpAnnotationVal = Optional.ofNullable(methodMetadata.getAnnotationAttributes(DynamicTp.class.getName()))
+                dtpAnnoValue = Optional.ofNullable(methodMetadata.getAnnotationAttributes(DynamicTp.class.getName()))
                         .orElse(Collections.emptyMap())
                         .getOrDefault("value", "")
                         .toString();
             }
         } catch (NoSuchBeanDefinitionException e) {
-            log.error("There is no bean with the given name {}", beanName, e);
-            return;
+            log.warn("There is no bean with the given name {}", beanName, e);
+            return bean;
         }
-        String poolName = StringUtils.isNotBlank(dtpAnnotationVal) ? dtpAnnotationVal : beanName;
-        Executor executor;
+        String poolName = StringUtils.isNotBlank(dtpAnnoValue) ? dtpAnnoValue : beanName;
+        return doRegisterAndReturnCommon(bean, poolName);
+    }
+
+    private Object doRegisterAndReturnCommon(Object bean, String poolName) {
         if (bean instanceof ThreadPoolTaskExecutor) {
-            executor = ((ThreadPoolTaskExecutor) bean).getThreadPoolExecutor();
-        } else {
-            executor = (Executor) bean;
+            val proxy = newProxy(poolName, ((ThreadPoolTaskExecutor) bean).getThreadPoolExecutor());
+            try {
+                ReflectionUtil.setFieldValue("threadPoolExecutor", bean, proxy);
+            } catch (IllegalAccessException ignored) { }
+            DtpRegistry.registerExecutor(new ExecutorWrapper(poolName, proxy), REGISTER_SOURCE);
+            return bean;
         }
-        DtpRegistry.registerExecutor(new ExecutorWrapper(poolName, executor), "beanPostProcessor");
+        val proxy = newProxy(poolName, (ThreadPoolExecutor) bean);
+        DtpRegistry.registerExecutor(new ExecutorWrapper(poolName, proxy), REGISTER_SOURCE);
+        return proxy;
     }
 
     @Override
@@ -124,4 +145,9 @@ public class DtpPostProcessor implements BeanPostProcessor, BeanFactoryAware, Pr
         return Ordered.HIGHEST_PRECEDENCE;
     }
 
+    private ThreadPoolExecutorProxy newProxy(String name, ThreadPoolExecutor originExecutor) {
+        val proxy = new ThreadPoolExecutorProxy(originExecutor);
+        shutdownGracefulAsync(originExecutor, name, 0);
+        return proxy;
+    }
 }

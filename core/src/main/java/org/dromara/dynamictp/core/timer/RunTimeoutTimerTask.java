@@ -17,13 +17,14 @@
 
 package org.dromara.dynamictp.core.timer;
 
-import org.dromara.dynamictp.common.em.NotifyItemEnum;
-import org.dromara.dynamictp.common.timer.Timeout;
-import org.dromara.dynamictp.common.timer.TimerTask;
-import org.dromara.dynamictp.core.notifier.manager.AlarmManager;
-import org.dromara.dynamictp.core.support.task.runnable.DtpRunnable;
-import org.dromara.dynamictp.core.thread.DtpExecutor;
+import cn.hutool.core.text.CharSequenceUtil;
 import lombok.extern.slf4j.Slf4j;
+import lombok.val;
+import org.dromara.dynamictp.core.notifier.manager.AlarmManager;
+import org.dromara.dynamictp.core.support.ExecutorAdapter;
+import org.dromara.dynamictp.core.support.ExecutorWrapper;
+
+import static org.dromara.dynamictp.common.em.NotifyItemEnum.RUN_TIMEOUT;
 
 /**
  * A timer task used to handle run timeout.
@@ -31,27 +32,32 @@ import lombok.extern.slf4j.Slf4j;
  * @author kamtohung
  **/
 @Slf4j
-public class RunTimeoutTimerTask implements TimerTask {
-
-    private final DtpExecutor dtpExecutor;
-
-    private final DtpRunnable runnable;
+public class RunTimeoutTimerTask extends AbstractTimeoutTimerTask {
 
     private final Thread thread;
 
-    public RunTimeoutTimerTask(DtpExecutor dtpExecutor, DtpRunnable runnable, Thread thread) {
-        this.dtpExecutor = dtpExecutor;
-        this.runnable = runnable;
+    public RunTimeoutTimerTask(ExecutorWrapper executorWrapper, Runnable runnable, Thread thread) {
+        super(executorWrapper, runnable);
         this.thread = thread;
     }
 
     @Override
-    public void run(Timeout timeout) {
-        dtpExecutor.incRunTimeoutCount(1);
-        AlarmManager.doAlarmAsync(dtpExecutor, NotifyItemEnum.RUN_TIMEOUT, runnable);
-        log.warn("DynamicTp execute, run timeout, tpName: {}, taskName: {}, traceId: {}, stackTrace: {}",
-                dtpExecutor.getThreadPoolName(), runnable.getTaskName(),
-                runnable.getTraceId(), traceToString(thread.getStackTrace()));
+    protected void doRun() {
+        val statProvider = executorWrapper.getThreadPoolStatProvider();
+        ExecutorAdapter<?> executor = statProvider.getExecutorWrapper().getExecutor();
+        val pair = getTaskNameAndTraceId();
+        statProvider.incRunTimeoutCount(1);
+        AlarmManager.doAlarmAsync(executorWrapper, RUN_TIMEOUT, runnable);
+        String logMsg = CharSequenceUtil.format("DynamicTp execute, run timeout, " +
+                        "tpName: {}, taskName: {}, traceId: {}, runTimeout: {}ms, " +
+                        "poolSize: {} (active: {}, core: {}, max: {}, largest: {}), " +
+                        "queueCapacity: {} (currSize: {}, remaining: {}), stackTrace: {}",
+                statProvider.getExecutorWrapper().getThreadPoolName(), pair.getLeft(), pair.getRight(),
+                statProvider.getRunTimeout(), executor.getPoolSize(), executor.getActiveCount(),
+                executor.getCorePoolSize(), executor.getMaximumPoolSize(), executor.getLargestPoolSize(),
+                statProvider.getExecutorWrapper().getExecutor().getQueueCapacity(), executor.getQueue().size(),
+                executor.getQueue().remainingCapacity(), traceToString(thread.getStackTrace()));
+        log.warn(logMsg);
     }
 
     public String traceToString(StackTraceElement[] trace) {

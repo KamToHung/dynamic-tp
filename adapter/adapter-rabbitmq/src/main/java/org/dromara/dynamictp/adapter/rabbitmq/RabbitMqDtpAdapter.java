@@ -17,17 +17,17 @@
 
 package org.dromara.dynamictp.adapter.rabbitmq;
 
-import org.dromara.dynamictp.adapter.common.AbstractDtpAdapter;
-import org.dromara.dynamictp.common.ApplicationContextHolder;
-import org.dromara.dynamictp.common.properties.DtpProperties;
-import org.dromara.dynamictp.common.util.ReflectionUtil;
-import org.dromara.dynamictp.core.support.ExecutorWrapper;
 import lombok.extern.slf4j.Slf4j;
 import lombok.val;
 import org.apache.commons.collections4.MapUtils;
+import org.dromara.dynamictp.adapter.common.AbstractDtpAdapter;
+import org.dromara.dynamictp.common.properties.DtpProperties;
+import org.dromara.dynamictp.common.spring.ApplicationContextHolder;
+import org.dromara.dynamictp.common.util.ReflectionUtil;
 import org.springframework.amqp.rabbit.connection.AbstractConnectionFactory;
 
 import java.util.Objects;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 
 /**
@@ -39,13 +39,19 @@ import java.util.concurrent.ThreadPoolExecutor;
 @Slf4j
 @SuppressWarnings("all")
 public class RabbitMqDtpAdapter extends AbstractDtpAdapter {
-    private static final String NAME = "rabbitMqTp";
 
-    private static final String CONSUME_EXECUTOR_FIELD_NAME = "executorService";
+    private static final String TP_PREFIX = "rabbitMqTp";
+
+    private static final String CONSUME_EXECUTOR_FIELD = "executorService";
 
     @Override
     public void refresh(DtpProperties dtpProperties) {
-        refresh(NAME, dtpProperties.getRabbitmqTp(), dtpProperties.getPlatforms());
+        refresh(dtpProperties.getRabbitmqTp(), dtpProperties.getPlatforms());
+    }
+
+    @Override
+    protected String getTpPrefix() {
+        return TP_PREFIX;
     }
 
     @Override
@@ -58,21 +64,17 @@ public class RabbitMqDtpAdapter extends AbstractDtpAdapter {
             return;
         }
         beans.forEach((k, v) -> {
-            AbstractConnectionFactory abstractConnectionFactory = (AbstractConnectionFactory) v;
-            ThreadPoolExecutor executor = (ThreadPoolExecutor) ReflectionUtil.getFieldValue(
-                    AbstractConnectionFactory.class, CONSUME_EXECUTOR_FIELD_NAME, abstractConnectionFactory);
-
-            if (Objects.nonNull(executor)) {
-                String key = genTpName(k);
-                val executorWrapper = new ExecutorWrapper(key, executor);
-                initNotifyItems(key, executorWrapper);
-                executors.put(key, executorWrapper);
+            AbstractConnectionFactory connFactory = (AbstractConnectionFactory) v;
+            ExecutorService executor = (ExecutorService) ReflectionUtil.getFieldValue(
+                    AbstractConnectionFactory.class, CONSUME_EXECUTOR_FIELD, connFactory);
+            if (Objects.nonNull(executor) && executor instanceof ThreadPoolExecutor) {
+                String tpName = genTpName(k);
+                enhanceOriginExecutor(tpName, (ThreadPoolExecutor) executor, CONSUME_EXECUTOR_FIELD, connFactory);
             }
         });
-        log.info("DynamicTp adapter, rabbitmq executors init end, executors: {}", executors);
     }
 
     private String genTpName(String beanName) {
-        return beanName + "Tp";
+        return TP_PREFIX + "#" + beanName;
     }
 }

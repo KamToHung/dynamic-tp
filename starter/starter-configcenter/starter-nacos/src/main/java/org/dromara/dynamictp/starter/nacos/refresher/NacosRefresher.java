@@ -17,20 +17,20 @@
 
 package org.dromara.dynamictp.starter.nacos.refresher;
 
+import cn.hutool.core.io.FileUtil;
 import com.alibaba.nacos.api.annotation.NacosInjected;
 import com.alibaba.nacos.api.config.ConfigService;
 import com.alibaba.nacos.api.config.listener.Listener;
 import com.alibaba.nacos.api.exception.NacosException;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.dromara.dynamictp.common.em.ConfigFileTypeEnum;
 import org.dromara.dynamictp.common.properties.DtpProperties;
 import org.dromara.dynamictp.common.util.NacosUtil;
 import org.dromara.dynamictp.core.refresher.AbstractRefresher;
 import org.dromara.dynamictp.core.support.ThreadPoolCreator;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
-import org.springframework.context.EnvironmentAware;
-import org.springframework.core.env.Environment;
 
 import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -42,7 +42,7 @@ import java.util.concurrent.ThreadPoolExecutor;
  * @since 1.0.0
  **/
 @Slf4j
-public class NacosRefresher extends AbstractRefresher implements EnvironmentAware, InitializingBean, DisposableBean, Listener {
+public class NacosRefresher extends AbstractRefresher implements InitializingBean, DisposableBean, Listener {
 
     private static final ThreadPoolExecutor EXECUTOR = ThreadPoolCreator.createCommonFast("nacos-listener");
 
@@ -51,17 +51,12 @@ public class NacosRefresher extends AbstractRefresher implements EnvironmentAwar
     @NacosInjected
     private ConfigService configService;
 
-    private Environment environment;
-
-    public NacosRefresher(DtpProperties dtpProperties) {
-        super(dtpProperties);
-    }
-
     @Override
     public void afterPropertiesSet() {
 
         DtpProperties.Nacos nacos = dtpProperties.getNacos();
-        configFileType = NacosUtil.getConfigType(dtpProperties, ConfigFileTypeEnum.PROPERTIES);
+        ConfigFileTypeEnum deduceType = getConfigFileType(nacos.getDataId());
+        configFileType = NacosUtil.getConfigType(dtpProperties, deduceType);
         String dataId = NacosUtil.deduceDataId(nacos, environment, configFileType);
         String group = NacosUtil.getGroup(nacos, "DEFAULT_GROUP");
 
@@ -71,6 +66,19 @@ public class NacosRefresher extends AbstractRefresher implements EnvironmentAwar
         } catch (NacosException e) {
             log.error("DynamicTp refresher, add listener error, dataId: {}, group: {}", dataId, group, e);
         }
+    }
+
+    /**
+     * 根据dataId后缀识别配置类型
+     * @param dataId dataId
+     * @return ConfigFileTypeEnum
+     */
+    private static ConfigFileTypeEnum getConfigFileType(String dataId) {
+        String suffix = FileUtil.getSuffix(dataId);
+        if (StringUtils.isBlank(suffix)) {
+            return ConfigFileTypeEnum.PROPERTIES;
+        }
+        return ConfigFileTypeEnum.of(suffix);
     }
 
     @Override
@@ -88,8 +96,4 @@ public class NacosRefresher extends AbstractRefresher implements EnvironmentAwar
         EXECUTOR.shutdown();
     }
 
-    @Override
-    public void setEnvironment(Environment environment) {
-        this.environment = environment;
-    }
 }

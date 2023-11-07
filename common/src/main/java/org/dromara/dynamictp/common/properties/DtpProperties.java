@@ -17,15 +17,13 @@
 
 package org.dromara.dynamictp.common.properties;
 
-import org.dromara.dynamictp.common.constant.DynamicTpConst;
-import org.dromara.dynamictp.common.entity.DtpExecutorProps;
-import org.dromara.dynamictp.common.entity.NotifyPlatform;
-import org.dromara.dynamictp.common.entity.TpExecutorProps;
 import com.google.common.collect.Lists;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.dromara.dynamictp.common.em.CollectorTypeEnum;
-import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.dromara.dynamictp.common.entity.DtpExecutorProps;
+import org.dromara.dynamictp.common.entity.NotifyPlatform;
+import org.dromara.dynamictp.common.entity.TpExecutorProps;
 
 import java.util.List;
 
@@ -37,8 +35,9 @@ import java.util.List;
  **/
 @Slf4j
 @Data
-@ConfigurationProperties(prefix = DynamicTpConst.MAIN_PROPERTIES_PREFIX)
 public class DtpProperties {
+
+    private DtpProperties() { }
 
     /**
      * If enabled DynamicTp.
@@ -53,7 +52,7 @@ public class DtpProperties {
     /**
      * Config file type.
      */
-    private String configType = "yml";
+    private String configType;
 
     /**
      * If enabled metrics collect.
@@ -169,6 +168,10 @@ public class DtpProperties {
      * Rabbitmq thread pools.
      */
     private List<TpExecutorProps> rabbitmqTp;
+    
+    public static DtpProperties getInstance() {
+        return Holder.INSTANCE;
+    }
 
     @Data
     public static class Nacos {
@@ -219,5 +222,9 @@ public class DtpProperties {
         private String authority = "ssl";
 
         private String key;
+    }
+    
+    private static class Holder {
+        private static final DtpProperties INSTANCE = new DtpProperties();
     }
 }

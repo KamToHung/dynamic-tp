@@ -17,14 +17,15 @@
 
 package org.dromara.dynamictp.adapter.okhttp3;
 
-import org.dromara.dynamictp.adapter.common.AbstractDtpAdapter;
-import org.dromara.dynamictp.common.ApplicationContextHolder;
-import org.dromara.dynamictp.core.support.ExecutorWrapper;
-import org.dromara.dynamictp.common.properties.DtpProperties;
 import lombok.extern.slf4j.Slf4j;
 import lombok.val;
 import okhttp3.OkHttpClient;
 import org.apache.commons.collections4.MapUtils;
+import org.dromara.dynamictp.adapter.common.AbstractDtpAdapter;
+import org.dromara.dynamictp.common.properties.DtpProperties;
+import org.dromara.dynamictp.common.spring.ApplicationContextHolder;
+
+import java.util.concurrent.ThreadPoolExecutor;
 
 /**
  * Okhttp3DtpAdapter related
@@ -35,11 +36,18 @@ import org.apache.commons.collections4.MapUtils;
 @Slf4j
 public class Okhttp3DtpAdapter extends AbstractDtpAdapter {
 
-    private static final String NAME = "okhttp3Tp";
+    private static final String TP_PREFIX = "okhttp3Tp";
+
+    private static final String EXECUTOR_SERVICE_FIELD = "executorService";
 
     @Override
     public void refresh(DtpProperties dtpProperties) {
-        refresh(NAME, dtpProperties.getOkhttp3Tp(), dtpProperties.getPlatforms());
+        refresh(dtpProperties.getOkhttp3Tp(), dtpProperties.getPlatforms());
+    }
+
+    @Override
+    protected String getTpPrefix() {
+        return TP_PREFIX;
     }
 
     @Override
@@ -52,15 +60,13 @@ public class Okhttp3DtpAdapter extends AbstractDtpAdapter {
         }
         beans.forEach((k, v) -> {
             val executor = v.dispatcher().executorService();
-            String key = genTpName(k);
-            val executorWrapper = new ExecutorWrapper(key, executor);
-            initNotifyItems(key, executorWrapper);
-            executors.put(key, executorWrapper);
+            if (executor instanceof ThreadPoolExecutor) {
+                enhanceOriginExecutor(genTpName(k), (ThreadPoolExecutor) executor, EXECUTOR_SERVICE_FIELD, v.dispatcher());
+            }
         });
-        log.info("DynamicTp adapter, okhttp3 executors init end, executors: {}", executors);
     }
 
     private String genTpName(String clientName) {
-        return clientName + "Tp";
+        return TP_PREFIX + "#" + clientName;
     }
 }

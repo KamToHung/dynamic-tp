@@ -17,11 +17,11 @@
 
 package org.dromara.dynamictp.common.entity;
 
-import org.dromara.dynamictp.common.em.QueueTypeEnum;
-import org.dromara.dynamictp.common.em.RejectedTypeEnum;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
+import org.dromara.dynamictp.common.em.QueueTypeEnum;
+import org.dromara.dynamictp.common.em.RejectedTypeEnum;
 
 import java.util.Set;
 
@@ -100,22 +100,12 @@ public class DtpExecutorProps extends TpExecutorProps {
     private boolean rejectEnhanced = true;
 
     /**
-     * Task execute timeout, unit (ms), just for statistics.
+     * Plugin names.
      */
-    private long runTimeout = 0;
+    private Set<String> pluginNames;
 
     /**
-     * Task queue wait timeout, unit (ms), just for statistics.
-     */
-    private long queueTimeout = 0;
-
-    /**
-     * Task wrapper names.
-     */
-    private Set<String> taskWrapperNames;
-
-    /**
-     * 检查核心参数
+     * check core param is inValid
      *
      * @return boolean return true means params is inValid
      */

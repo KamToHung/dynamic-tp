@@ -17,11 +17,12 @@
 
 package org.dromara.dynamictp.common.entity;
 
+import lombok.Data;
 import org.dromara.dynamictp.common.constant.DynamicTpConst;
 import org.dromara.dynamictp.common.em.NotifyItemEnum;
-import lombok.Data;
 
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -79,4 +80,24 @@ public class TpExecutorProps {
      * If enable notify.
      */
     private boolean notifyEnabled = true;
+
+    /**
+     * Task execute timeout, unit (ms), just for statistics.
+     */
+    private long runTimeout = 0;
+
+    /**
+     * Task queue wait timeout, unit (ms), just for statistics.
+     */
+    private long queueTimeout = 0;
+
+    /**
+     * Task wrapper names.
+     */
+    private Set<String> taskWrapperNames;
+
+    /**
+     * Aware names.
+     */
+    private List<String> awareNames;
 }

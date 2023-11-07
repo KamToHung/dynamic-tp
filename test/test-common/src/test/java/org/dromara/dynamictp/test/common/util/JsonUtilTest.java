@@ -85,6 +85,4 @@ class JsonUtilTest {
         assertEquals(expected, testObject.getDate());
         assertEquals(updateDate, testObject.getUpdateDate());
     }
-
-
 }

@@ -17,10 +17,9 @@
 
 package org.dromara.dynamictp.starter.cloud.huawei.refresher;
 
-import org.dromara.dynamictp.common.properties.DtpProperties;
-import org.dromara.dynamictp.core.refresher.AbstractRefresher;
 import com.huaweicloud.common.event.ConfigRefreshEvent;
 import lombok.extern.slf4j.Slf4j;
+import org.dromara.dynamictp.core.refresher.AbstractRefresher;
 import org.springframework.context.ApplicationEvent;
 import org.springframework.context.event.SmartApplicationListener;
 import org.springframework.lang.NonNull;
@@ -31,10 +30,6 @@ import org.springframework.lang.NonNull;
 @Slf4j
 public class CloudHuaweiRefresher extends AbstractRefresher implements SmartApplicationListener {
 
-    public CloudHuaweiRefresher(DtpProperties dtpProperties) {
-        super(dtpProperties);
-    }
-
     @Override
     public boolean supportsEventType(@NonNull Class<? extends ApplicationEvent> eventType) {
         return ConfigRefreshEvent.class.isAssignableFrom(eventType);
@@ -44,7 +39,7 @@ public class CloudHuaweiRefresher extends AbstractRefresher implements SmartAppl
     public void onApplicationEvent(@NonNull ApplicationEvent event) {
         // huawei config define RefreshEvent
         if (event instanceof ConfigRefreshEvent) {
-            doRefresh(dtpProperties);
+            refresh(environment);
         }
     }
 }

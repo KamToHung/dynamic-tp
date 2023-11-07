@@ -18,6 +18,9 @@
 package org.dromara.dynamictp.core.notifier.manager;
 
 import cn.hutool.core.util.NumberUtil;
+import com.google.common.collect.Sets;
+import lombok.extern.slf4j.Slf4j;
+import lombok.val;
 import org.dromara.dynamictp.common.em.NotifyItemEnum;
 import org.dromara.dynamictp.common.em.RejectedTypeEnum;
 import org.dromara.dynamictp.common.entity.AlarmInfo;
@@ -31,10 +34,6 @@ import org.dromara.dynamictp.core.support.ExecutorWrapper;
 import org.dromara.dynamictp.core.support.ThreadPoolBuilder;
 import org.dromara.dynamictp.core.support.task.runnable.DtpRunnable;
 import org.dromara.dynamictp.core.support.task.wrapper.TaskWrappers;
-import org.dromara.dynamictp.core.thread.DtpExecutor;
-import com.google.common.collect.Sets;
-import lombok.extern.slf4j.Slf4j;
-import lombok.val;
 import org.slf4j.MDC;
 
 import java.util.List;
@@ -79,35 +78,28 @@ public class AlarmManager {
         AlarmCounter.init(poolName, notifyItem.getType());
     }
 
-    public static void doAlarmAsync(DtpExecutor executor, NotifyItemEnum notifyType) {
-        AlarmCounter.incAlarmCounter(executor.getThreadPoolName(), notifyType.getValue());
-        ALARM_EXECUTOR.execute(() -> doAlarm(ExecutorWrapper.of(executor), notifyType));
+    public static void doAlarmAsync(ExecutorWrapper executorWrapper, NotifyItemEnum notifyType, Runnable currRunnable) {
+        if (currRunnable instanceof DtpRunnable) {
+            MDC.put(TRACE_ID, ((DtpRunnable) currRunnable).getTraceId());
+        }
+        ALARM_EXECUTOR.execute(() -> doAlarm(executorWrapper, notifyType));
     }
 
-    public static void doAlarmAsync(DtpExecutor executor, NotifyItemEnum notifyType, Runnable currRunnable) {
-        MDC.put(TRACE_ID, ((DtpRunnable) currRunnable).getTraceId());
-        AlarmCounter.incAlarmCounter(executor.getThreadPoolName(), notifyType.getValue());
-        ALARM_EXECUTOR.execute(() -> doAlarm(ExecutorWrapper.of(executor), notifyType));
+    public static void doAlarmAsync(ExecutorWrapper executorWrapper, List<NotifyItemEnum> notifyTypes) {
+        ALARM_EXECUTOR.execute(() -> notifyTypes.forEach(x -> doAlarm(executorWrapper, x)));
     }
 
-    public static void doAlarmAsync(DtpExecutor executor, List<NotifyItemEnum> notifyItemEnums) {
-        doAlarmAsync(ExecutorWrapper.of(executor), notifyItemEnums);
-    }
-
-    public static void doAlarmAsync(ExecutorWrapper executorWrapper, List<NotifyItemEnum> notifyItemEnums) {
-        ALARM_EXECUTOR.execute(() -> notifyItemEnums.forEach(x -> doAlarm(executorWrapper, x)));
-    }
-
-    public static void doAlarm(ExecutorWrapper executorWrapper, NotifyItemEnum notifyItemEnum) {
-        NotifyHelper.getNotifyItem(executorWrapper, notifyItemEnum).ifPresent(notifyItem -> {
+    public static void doAlarm(ExecutorWrapper executorWrapper, NotifyItemEnum notifyType) {
+        AlarmCounter.incAlarmCounter(executorWrapper.getThreadPoolName(), notifyType.getValue());
+        NotifyHelper.getNotifyItem(executorWrapper, notifyType).ifPresent(notifyItem -> {
             val alarmCtx = new AlarmCtx(executorWrapper, notifyItem);
             ALARM_INVOKER_CHAIN.proceed(alarmCtx);
         });
     }
 
-    public static boolean checkThreshold(ExecutorWrapper executor, NotifyItemEnum itemEnum, NotifyItem notifyItem) {
+    public static boolean checkThreshold(ExecutorWrapper executor, NotifyItemEnum notifyType, NotifyItem notifyItem) {
 
-        switch (itemEnum) {
+        switch (notifyType) {
             case CAPACITY:
                 return checkCapacity(executor, notifyItem);
             case LIVENESS:
@@ -117,7 +109,7 @@ public class AlarmManager {
             case QUEUE_TIMEOUT:
                 return checkWithAlarmInfo(executor, notifyItem);
             default:
-                log.error("Unsupported alarm type, type: {}", itemEnum);
+                log.error("Unsupported alarm type [{}]", notifyType);
                 return false;
         }
     }

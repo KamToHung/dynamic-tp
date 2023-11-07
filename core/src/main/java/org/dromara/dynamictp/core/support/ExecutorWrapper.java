@@ -17,15 +17,20 @@
 
 package org.dromara.dynamictp.core.support;
 
+import com.google.common.collect.Sets;
+import lombok.Data;
 import org.dromara.dynamictp.common.em.NotifyItemEnum;
 import org.dromara.dynamictp.common.entity.NotifyItem;
+import org.dromara.dynamictp.core.aware.AwareManager;
+import org.dromara.dynamictp.core.aware.TaskEnhanceAware;
+import org.dromara.dynamictp.core.executor.DtpExecutor;
 import org.dromara.dynamictp.core.notifier.capture.CapturedExecutor;
-import org.dromara.dynamictp.core.thread.DtpExecutor;
-import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
+import org.dromara.dynamictp.core.notifier.manager.AlarmManager;
+import org.dromara.dynamictp.core.support.task.wrapper.TaskWrapper;
 import org.springframework.beans.BeanUtils;
 
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadPoolExecutor;
 
@@ -36,7 +41,6 @@ import java.util.concurrent.ThreadPoolExecutor;
  * @since 1.0.3
  **/
 @Data
-@Slf4j
 public class ExecutorWrapper {
 
     /**
@@ -69,8 +73,17 @@ public class ExecutorWrapper {
      */
     private boolean notifyEnabled = true;
 
-    public ExecutorWrapper() {
-    }
+    /**
+     * Thread pool stat provider
+     */
+    private ThreadPoolStatProvider threadPoolStatProvider = ThreadPoolStatProvider.of(this);
+
+    /**
+     * Aware names
+     */
+    private Set<String> awareNames = Sets.newHashSet();
+
+    public ExecutorWrapper() { }
 
     public ExecutorWrapper(DtpExecutor executor) {
         this.threadPoolName = executor.getThreadPoolName();
@@ -79,6 +92,7 @@ public class ExecutorWrapper {
         this.notifyItems = executor.getNotifyItems();
         this.notifyEnabled = executor.isNotifyEnabled();
         this.platformIds = executor.getPlatformIds();
+        this.awareNames = executor.getAwareNames();
     }
 
     public ExecutorWrapper(String threadPoolName, Executor executor) {
@@ -90,7 +104,8 @@ public class ExecutorWrapper {
         } else {
             throw new IllegalArgumentException("unsupported Executor type !");
         }
-        this.notifyItems = NotifyItem.getSimpleNotifyItems();
+        this.notifyItems = NotifyItem.getAllNotifyItems();
+        AlarmManager.initAlarm(threadPoolName, notifyItems);
     }
 
     public static ExecutorWrapper of(DtpExecutor executor) {
@@ -104,11 +119,31 @@ public class ExecutorWrapper {
         return executorWrapper;
     }
 
+    public void initialize() {
+        if (isDtpExecutor()) {
+            DtpExecutor dtpExecutor = (DtpExecutor) getExecutor();
+            dtpExecutor.initialize();
+            AwareManager.register(this);
+        } else if (isThreadPoolExecutor()) {
+            AwareManager.register(this);
+        }
+    }
+
+    public ThreadPoolStatProvider getThreadPoolStatProvider() {
+        return this.threadPoolStatProvider;
+    }
+
     public boolean isDtpExecutor() {
         return this.executor instanceof DtpExecutor;
     }
 
     public boolean isThreadPoolExecutor() {
         return this.executor instanceof ThreadPoolExecutorAdapter;
+    }
+
+    public void setTaskWrappers(List<TaskWrapper> taskWrappers) {
+        if (executor.getOriginal() instanceof TaskEnhanceAware) {
+            ((TaskEnhanceAware) executor.getOriginal()).setTaskWrappers(taskWrappers);
+        }
     }
 }

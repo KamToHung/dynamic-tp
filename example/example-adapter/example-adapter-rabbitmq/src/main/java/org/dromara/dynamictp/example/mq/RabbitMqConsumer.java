@@ -30,8 +30,12 @@ import org.springframework.stereotype.Component;
 @RabbitListener(queues = "testQueue")
 public class RabbitMqConsumer {
 
+    @RabbitListener(containerFactory = "rabbitListenerContainerFactory")
     @RabbitHandler
     public void process(String text) {
-        log.info("Receiver  : " + text);
+        Thread thread = Thread.currentThread();
+        String name = thread.getName();
+        long id = thread.getId();
+        log.info("receive message: {}, thread name: {}, thread id: {}", text, name, id);
     }
 }

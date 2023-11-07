@@ -17,16 +17,15 @@
 
 package org.dromara.dynamictp.starter.zookeeper.refresher;
 
-import org.dromara.dynamictp.common.properties.DtpProperties;
-import org.dromara.dynamictp.core.refresher.AbstractRefresher;
-import org.dromara.dynamictp.starter.zookeeper.util.CuratorUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.api.CuratorListener;
 import org.apache.curator.framework.state.ConnectionState;
 import org.apache.curator.framework.state.ConnectionStateListener;
 import org.apache.zookeeper.WatchedEvent;
+import org.dromara.dynamictp.core.refresher.AbstractRefresher;
 import org.dromara.dynamictp.starter.zookeeper.autoconfigure.ZkConfigEnvironmentProcessor;
+import org.dromara.dynamictp.starter.zookeeper.util.CuratorUtil;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.EnvironmentAware;
 import org.springframework.core.env.ConfigurableEnvironment;
@@ -37,10 +36,6 @@ import org.springframework.core.env.Environment;
  */
 @Slf4j
 public class ZookeeperRefresher extends AbstractRefresher implements EnvironmentAware, InitializingBean {
-
-    public ZookeeperRefresher(DtpProperties dtpProperties) {
-        super(dtpProperties);
-    }
 
     @Override
     public void afterPropertiesSet() {
@@ -70,7 +65,7 @@ public class ZookeeperRefresher extends AbstractRefresher implements Environment
 
         curatorFramework.getConnectionStateListenable().addListener(connectionStateListener);
         curatorFramework.getCuratorListenable().addListener(curatorListener);
-
+        cleanZkPropertySource(environment);
         log.info("DynamicTp refresher, add listener success, nodePath: {}", nodePath);
     }
 
@@ -78,11 +73,15 @@ public class ZookeeperRefresher extends AbstractRefresher implements Environment
      * load config and refresh
      */
     private void loadAndRefresh() {
-        doRefresh(CuratorUtil.genPropertiesMap(dtpProperties));
+        refresh(CuratorUtil.genPropertiesMap(dtpProperties));
     }
 
-    @Override
-    public void setEnvironment(Environment environment) {
+    /**
+     * ZK_PROPERTY_SOURCE just for DtpBeanDefinitionRegistrar
+     *
+     * @param environment environment
+     */
+    private void cleanZkPropertySource(Environment environment) {
         ConfigurableEnvironment env = ((ConfigurableEnvironment) environment);
         env.getPropertySources().remove(ZkConfigEnvironmentProcessor.ZK_PROPERTY_SOURCE_NAME);
     }

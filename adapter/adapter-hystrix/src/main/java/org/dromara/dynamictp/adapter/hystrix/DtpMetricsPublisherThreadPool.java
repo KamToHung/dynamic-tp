@@ -17,9 +17,6 @@
 
 package org.dromara.dynamictp.adapter.hystrix;
 
-import org.dromara.dynamictp.common.ApplicationContextHolder;
-import org.dromara.dynamictp.common.entity.TpExecutorProps;
-import org.dromara.dynamictp.common.util.ReflectionUtil;
 import com.netflix.hystrix.HystrixThreadPoolKey;
 import com.netflix.hystrix.HystrixThreadPoolMetrics;
 import com.netflix.hystrix.HystrixThreadPoolProperties;
@@ -27,6 +24,9 @@ import com.netflix.hystrix.strategy.metrics.HystrixMetricsPublisherThreadPool;
 import com.netflix.hystrix.strategy.properties.HystrixProperty;
 import lombok.extern.slf4j.Slf4j;
 import lombok.val;
+import org.dromara.dynamictp.common.entity.TpExecutorProps;
+import org.dromara.dynamictp.common.spring.ApplicationContextHolder;
+import org.dromara.dynamictp.common.util.ReflectionUtil;
 
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
@@ -72,7 +72,7 @@ public class DtpMetricsPublisherThreadPool implements HystrixMetricsPublisherThr
         metricsPublisherForThreadPool.initialize();
         HystrixDtpAdapter hystrixTpHandler = ApplicationContextHolder.getBean(HystrixDtpAdapter.class);
         hystrixTpHandler.cacheMetricsPublisher(threadPoolKey.name(), this);
-        hystrixTpHandler.register(threadPoolKey.name(), metrics.getThreadPool());
+        hystrixTpHandler.register(threadPoolKey.name(), metrics);
     }
 
     public void refreshProperties(TpExecutorProps props) {

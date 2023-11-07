@@ -20,6 +20,7 @@ package org.dromara.dynamictp.example.controller;
 import org.dromara.dynamictp.core.DtpRegistry;
 import org.dromara.dynamictp.core.support.task.runnable.NamedRunnable;
 import lombok.extern.slf4j.Slf4j;
+import org.dromara.dynamictp.example.feign.DynamicTpFeign;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -41,6 +42,15 @@ public class TestController {
     @Autowired
     @Qualifier("dtpExecutor1")
     private ThreadPoolExecutor dtpExecutor1;
+
+    @Resource
+    private DynamicTpFeign dynamicTpFeign;
+
+    @GetMapping("/index")
+    public String index() throws InterruptedException {
+        Thread.sleep((int) (Math.random() * 100));
+        return "index";
+    }
 
     @GetMapping("/dtp-consul-example/test")
     public String test() throws InterruptedException {

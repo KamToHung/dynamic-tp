@@ -17,11 +17,11 @@
 
 package org.dromara.dynamictp.starter.etcd.refresher;
 
+import lombok.extern.slf4j.Slf4j;
 import org.dromara.dynamictp.common.properties.DtpProperties;
 import org.dromara.dynamictp.core.refresher.AbstractRefresher;
-import org.dromara.dynamictp.core.spring.PropertiesBinder;
+import org.dromara.dynamictp.core.support.BinderHelper;
 import org.dromara.dynamictp.starter.etcd.util.EtcdUtil;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.core.Ordered;
@@ -42,7 +42,7 @@ public class EtcdRefresher extends AbstractRefresher implements InitializingBean
     public void afterPropertiesSet() {
         DtpProperties.Etcd etcd = dtpProperties.getEtcd();
         Map<Object, Object> map = loadConfig(etcd);
-        if (map.size() > 0) {
+        if (!map.isEmpty()) {
             EtcdUtil.initWatcher(this, dtpProperties, map);
         }
     }
@@ -57,7 +57,7 @@ public class EtcdRefresher extends AbstractRefresher implements InitializingBean
      */
     private Map<Object, Object> loadConfig(final DtpProperties.Etcd etcd) {
         Map<Object, Object> properties = EtcdUtil.getConfigMap(etcd, dtpProperties.getConfigType());
-        PropertiesBinder.bindDtpProperties(properties, dtpProperties);
+        BinderHelper.bindDtpProperties(properties, dtpProperties);
         return properties;
     }
 
