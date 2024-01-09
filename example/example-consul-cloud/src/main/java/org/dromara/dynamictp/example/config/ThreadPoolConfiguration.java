@@ -19,6 +19,7 @@ package org.dromara.dynamictp.example.config;
 
 import org.dromara.dynamictp.core.executor.DtpExecutor;
 import org.dromara.dynamictp.core.executor.OrderedDtpExecutor;
+import org.dromara.dynamictp.core.executor.priority.PriorityDtpExecutor;
 import org.dromara.dynamictp.core.support.DynamicTp;
 import org.dromara.dynamictp.core.support.ThreadPoolBuilder;
 import org.dromara.dynamictp.core.support.ThreadPoolCreator;
@@ -76,6 +77,7 @@ public class ThreadPoolConfiguration {
     /**
      * 通过{@link ThreadPoolBuilder} 设置详细参数创建动态线程池
      * tips: 建议直接在配置中心配置就行，不用@Bean声明
+     *
      * @return 线程池实例
      */
     @Bean
@@ -95,6 +97,7 @@ public class ThreadPoolConfiguration {
      * 通过{@link ThreadPoolBuilder} 设置详细参数创建动态线程池
      * eager，参考tomcat线程池设计，适用于处理io密集型任务场景，具体参数可以看代码注释
      * tips: 建议直接在配置中心配置就行，不用@Bean声明
+     *
      * @return 线程池实例
      */
     @Bean
@@ -113,6 +116,7 @@ public class ThreadPoolConfiguration {
      * 通过{@link ThreadPoolBuilder} 设置详细参数创建动态线程池
      * ordered，适用于处理有序任务场景，任务要实现Ordered接口，具体参数可以看代码注释
      * tips: 建议直接在配置中心配置就行，不用@Bean声明
+     *
      * @return 线程池实例
      */
     @Bean
@@ -130,6 +134,7 @@ public class ThreadPoolConfiguration {
      * 通过{@link ThreadPoolBuilder} 设置详细参数创建线程池
      * scheduled，适用于处理定时任务场景，具体参数可以看代码注释
      * tips: 建议直接在配置中心配置就行，不用@Bean声明
+     *
      * @return 线程池实例
      */
     @Bean
@@ -141,4 +146,23 @@ public class ThreadPoolConfiguration {
                 .rejectedExecutionHandler(CALLER_RUNS_POLICY.getName())
                 .buildScheduled();
     }
+
+    /**
+     * 通过{@link ThreadPoolBuilder} 设置详细参数创建线程池
+     * priority，适用于处理优先级任务场景，具体参数可以看代码注释
+     * tips: 建议直接在配置中心配置就行，不用@Bean声明
+     *
+     * @return 线程池实例
+     */
+    @Bean
+    public PriorityDtpExecutor priorityDtpExecutor() {
+        return ThreadPoolBuilder.newBuilder()
+                .threadPoolName("priorityDtpExecutor")
+                .corePoolSize(2)
+                .maximumPoolSize(4)
+                .threadFactory("test-priority")
+                .rejectedExecutionHandler(CALLER_RUNS_POLICY.getName())
+                .buildPriority();
+    }
+
 }
